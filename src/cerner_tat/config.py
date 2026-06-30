@@ -78,6 +78,10 @@ class Config:
     shift_basis: str = "collected_time"
     category_rules: List[CategoryRule] = field(default_factory=list)
     default_category: str = "Other"
+    # pasted-text layout
+    text_datetime_fields: List[str] = field(default_factory=lambda: list(TIME_FIELDS))
+    text_tat_fields: List[str] = field(default_factory=lambda: list(TAT_FIELDS))
+    text_priority_codes: set = field(default_factory=set)
 
     @property
     def all_fields(self) -> List[str]:
@@ -138,5 +142,15 @@ def load_config(path: str | None = None) -> Config:
         rules.append(CategoryRule(name=name, patterns=compiled))
     cfg.category_rules = rules
     cfg.default_category = classification.get("default", "Other")
+
+    # --- pasted-text layout ---
+    text_layout = raw.get("text_layout", {}) or {}
+    dt_fields = text_layout.get("datetime_fields") or list(TIME_FIELDS)
+    cfg.text_datetime_fields = [f for f in dt_fields if f in TIME_FIELDS]
+    tat_fields = text_layout.get("tat_fields") or list(TAT_FIELDS)
+    cfg.text_tat_fields = [f for f in tat_fields if f in TAT_FIELDS]
+    cfg.text_priority_codes = {
+        str(c).strip().upper() for c in (text_layout.get("priority_codes") or [])
+    }
 
     return cfg

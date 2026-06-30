@@ -17,6 +17,7 @@ output/
 samples/*
 !samples/README.md
 !samples/example_report.html
+!samples/example_pasted_report.txt
 
 # OS / editor
 .DS_Store

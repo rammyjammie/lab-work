@@ -1,10 +1,17 @@
 # Cerner TAT Scraper
 
-A **fully local, offline** tool for the lab. It reads Cerner reports exported as
-**HTML or PDF**, classifies each test by type (CBC, Chemistry, Cardiac,
-Coagulation, Urinalysis), figures out which **shift** it belongs to (day
-07:00–19:00 / night 19:00–07:00), and writes a formatted **Excel spreadsheet**
-with the counts and average turn‑around‑times (TAT).
+A **fully local, offline** tool for the lab. It reads Cerner TAT reports —
+as an **HTML file, a PDF, or text pasted straight out of the Cerner viewer** —
+classifies each test by type (CBC, Chemistry, Cardiac, Coagulation,
+Urinalysis), figures out which **shift** it belongs to (day 07:00–19:00 / night
+19:00–07:00), and writes a formatted **Excel spreadsheet** with the counts and
+average turn‑around‑times (TAT).
+
+> **Pasting text is the most reliable input.** Cerner TAT PDFs are often
+> *screenshots/scanned images* with no selectable text, so a PDF parser can't
+> read them. Copying the report text and pasting it into the **Paste text** tab
+> (or saving it as a `.txt` file) sidesteps that entirely. See
+> [Pasting report text](#pasting-report-text).
 
 > **Privacy / security:** This tool makes **zero network calls**. Everything runs
 > on your machine. No patient data ever leaves the computer. See
@@ -36,6 +43,11 @@ If your report already has these as columns, they're used directly. If it only
 has timestamps (ordered / collected / received / completed), the tool computes
 them.
 
+> **Note:** Cerner displays timestamps truncated to the minute but computes TAT
+> on the underlying seconds, so a value recomputed from the displayed times can
+> differ from Cerner's by ~1 minute. The tool therefore always prefers the
+> report's own TAT numbers and only computes them when they're absent.
+
 ---
 
 ## Quick start
@@ -63,6 +75,21 @@ python run_gui.py
 Pick one or more report files, choose an output folder, click **Process**.
 
 Prefer the command line? See [Command line](#command-line-optional).
+
+### Pasting report text
+
+Because Cerner TAT PDFs are frequently images, the easiest path is usually:
+
+1. In Cerner, select the report text and copy it.
+2. Open the GUI (`python run_gui.py`) and switch to the **Paste text** tab.
+3. Paste, give it an output name, and click **Process**.
+
+The tool reads the text positionally — each test is a block of: test name,
+(optional) priority code, the four timestamps, then the five TAT values. This
+layout is defined under `text_layout` in `config/config.yaml`, so if your
+report's column order differs you can adjust it there without touching code. You
+can also save the copied text as a `.txt` file and process it like any other
+input.
 
 ---
 
@@ -118,7 +145,7 @@ python -m cerner_tat.cli reports/*.pdf reports/*.html -o output_folder
 config/config.yaml        # column aliases, shift times, classification rules — edit this
 samples/                  # drop de-identified sample reports here
 src/cerner_tat/           # the package
-  parsers/                # HTML + PDF table extraction
+  parsers/                # HTML + PDF table extraction, and pasted-text parsing
   classify.py             # test-type + shift assignment
   aggregate.py            # counts + average TAT
   report.py               # Excel writer

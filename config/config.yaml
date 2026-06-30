@@ -39,6 +39,29 @@ columns:
   tat_order_to_complete:   ["order to complete"]
 
 # -----------------------------------------------------------------------------
+# PASTED-TEXT / PLAIN-TEXT LAYOUT
+# Cerner's TAT report copied out of the viewer (or a text-based PDF) arrives as
+# one field per line with NO headers, so fields are read by position. Each test
+# is a block of: test name, (optional) priority code, the timestamps below in
+# order, then the TAT values below in order. Reorder these lists if your report's
+# column order differs.
+# -----------------------------------------------------------------------------
+text_layout:
+  datetime_fields:
+    - order_time
+    - collected_time
+    - received_time
+    - complete_time
+  tat_fields:
+    - tat_order_to_collected
+    - tat_collected_to_lab
+    - tat_collected_to_complete
+    - tat_lab_to_complete
+    - tat_order_to_complete
+  # Lines treated as a priority/class code (not part of the test name).
+  priority_codes: ["ST", "RT", "STAT", "ROUTINE", "TIMED", "PREOP", "NOW", "ASAP", "TODAY"]
+
+# -----------------------------------------------------------------------------
 # SHIFTS
 # Day shift runs [day_start, night_start); everything else is Night.
 # `basis` chooses which timestamp decides the shift a test belongs to.
@@ -86,6 +109,10 @@ classification:
         - "hemogram"
         - "\\bh\\s*&\\s*h\\b"
         - "hgb\\s*/\\s*hct"
+        - "differential"
+        - "\\bdiff\\b"
+        - "\\bwbc\\b"
+        - "\\bplatelet\\b"
 
     - name: Urinalysis
       patterns:
