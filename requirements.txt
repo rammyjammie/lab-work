@@ -1,0 +1,10 @@
+# Cerner TAT Scraper — runtime dependencies (all local, no network use)
+pandas>=2.0
+beautifulsoup4>=4.12
+lxml>=4.9
+pdfplumber>=0.10
+openpyxl>=3.1
+PyYAML>=6.0
+
+# Testing only
+pytest>=7.4

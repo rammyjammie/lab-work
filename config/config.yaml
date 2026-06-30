@@ -1,0 +1,116 @@
+# =============================================================================
+# Cerner TAT Scraper — configuration
+#
+# This file controls how reports are read and classified. You normally only need
+# to edit THIS file (not the code) to adapt the tool to your site's reports.
+#
+# Matching everywhere is CASE-INSENSITIVE and ignores extra spaces and most
+# punctuation, so "Order Date/Time" and "order date time" are treated the same.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# COLUMN ALIASES
+# Map each canonical field the tool understands to the header text(s) that may
+# appear in your report. Add/remove aliases to match your exact headers.
+# Leave a field's list empty if your report doesn't have it.
+# -----------------------------------------------------------------------------
+columns:
+  # --- identity (optional, used only on the Detail sheet) ---
+  patient_name:   ["patient", "patient name", "name"]
+  mrn:            ["mrn", "medical record number", "fin", "fin nbr"]
+  accession:      ["accession", "accession number", "specimen id", "specimen"]
+
+  # --- the test / order being performed (REQUIRED for classification) ---
+  test_name:      ["test", "test name", "order", "order name", "procedure", "orderable"]
+
+  # --- timestamps (used to COMPUTE any TAT columns that aren't already present) ---
+  order_time:     ["order date/time", "ordered", "order time", "order dt/tm", "ordered date/time"]
+  collected_time: ["collected", "collection date/time", "collect dt/tm", "collected dt/tm", "collected date/time"]
+  received_time:  ["received", "lab received", "received in lab", "receive dt/tm", "received date/time"]
+  complete_time:  ["completed", "complete date/time", "result date/time", "verified", "complete dt/tm", "resulted"]
+
+  # --- direct TAT columns (in your reports). If present, used as-is; otherwise
+  #     computed from the timestamps above. Values may be minutes (e.g. "83"),
+  #     "H:MM" / "HH:MM:SS", or "1d 2h 3m" style strings. ---
+  tat_order_to_collected:  ["order to collected", "order to collect"]
+  tat_collected_to_lab:    ["collected to lab", "collect to received", "collected to received"]
+  tat_collected_to_complete: ["collected to complete", "collect to complete"]
+  tat_lab_to_complete:     ["lab to complete", "received to complete"]
+  tat_order_to_complete:   ["order to complete"]
+
+# -----------------------------------------------------------------------------
+# SHIFTS
+# Day shift runs [day_start, night_start); everything else is Night.
+# `basis` chooses which timestamp decides the shift a test belongs to.
+#   one of: collected_time, order_time, received_time, complete_time
+# -----------------------------------------------------------------------------
+shifts:
+  day_start:   "07:00"
+  night_start: "19:00"
+  day_label:   "Day"
+  night_label: "Night"
+  basis: collected_time
+
+# -----------------------------------------------------------------------------
+# TEST CLASSIFICATION
+# Each record's test name is matched against the categories IN ORDER; the first
+# category with a matching pattern wins. Patterns are regular expressions,
+# matched case-insensitively. \b means a word boundary (so "\bpt\b" matches the
+# standalone test "PT" but not "PTT" or "Platelet").
+# Tweak these lists so your local orderable names land in the right bucket.
+# -----------------------------------------------------------------------------
+classification:
+  categories:
+    - name: Cardiac
+      patterns:
+        - "troponin"
+        - "\\btrop\\b"
+        - "\\bbnp\\b"
+        - "nt-?probnp"
+        - "ck-?mb"
+
+    - name: Coagulation
+      patterns:
+        - "\\bpt\\b"
+        - "prothrombin"
+        - "\\bptt\\b"
+        - "\\baptt\\b"
+        - "\\binr\\b"
+        - "d-?dimer"
+        - "fibrinogen"
+
+    - name: CBC
+      patterns:
+        - "\\bcbc\\b"
+        - "complete blood count"
+        - "hemogram"
+        - "\\bh\\s*&\\s*h\\b"
+        - "hgb\\s*/\\s*hct"
+
+    - name: Urinalysis
+      patterns:
+        - "urinalysis"
+        - "\\bua\\b"
+        - "\\bu\\s*/\\s*a\\b"
+        - "urine"
+
+    - name: Chemistry
+      patterns:
+        - "\\bbmp\\b"
+        - "\\bcmp\\b"
+        - "metabolic panel"
+        - "electrolyte"
+        - "\\bbun\\b"
+        - "creatinine"
+        - "glucose"
+        - "\\blft\\b"
+        - "hepatic"
+        - "\\bmag\\b"
+        - "magnesium"
+        - "phosph"
+        - "calcium"
+        - "\\blactate\\b"
+        - "chemistry"
+
+  # Bucket for test names that match no category above.
+  default: Other
