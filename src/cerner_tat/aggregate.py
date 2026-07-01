@@ -163,16 +163,10 @@ def _summary_frame(
     return pd.DataFrame(rows, columns=["Metric", "Value"])
 
 
-def _report_date(records: List[TestRecord]) -> Optional[str]:
-    """The report's date = the most common collection date across records."""
-    dates = []
-    for r in records:
-        ts = r.collected_time or r.order_time or r.complete_time
-        if ts is not None:
-            dates.append(ts.date())
-    if not dates:
-        return None
-    return Counter(dates).most_common(1)[0][0].isoformat()
+def _record_date(record: TestRecord) -> Optional[str]:
+    """Calendar date a record belongs to, from its collection (then order/complete)."""
+    ts = record.collected_time or record.order_time or record.complete_time
+    return ts.date().isoformat() if ts is not None else None
 
 
 def _avg(records: List[TestRecord], metric: str, cap=None) -> Optional[float]:
@@ -199,17 +193,18 @@ def _daily_category_order(records: List[TestRecord], config: Config) -> List[str
     return ordered
 
 
-def build_daily_summary(records: List[TestRecord], config: Config) -> pd.DataFrame:
-    """One wide row per report: counts + patient count + grouped TAT by shift.
-
-    Column order (all driven by config.daily_*):
-      Date | <per-type counts> | Total | Patients | <group·metric·shift TATs…>
-    """
-    row: dict = {"Date": _report_date(records) or ""}
+def _daily_row(
+    records: List[TestRecord],
+    config: Config,
+    date_str: str,
+    ordered_cats: List[str],
+) -> dict:
+    """Build one wide summary row for a single date's records."""
+    row: dict = {"Date": date_str}
 
     if config.daily_include_counts:
         counts = Counter(r.category for r in records if r.category)
-        for cat in _daily_category_order(records, config):
+        for cat in ordered_cats:
             row[cat] = counts.get(cat, 0)
         row["Total"] = len(records)
 
@@ -229,7 +224,34 @@ def build_daily_summary(records: List[TestRecord], config: Config) -> pd.DataFra
                 col = f"{group} {TAT_SHORT_LABELS[metric]} ({shift})"
                 row[col] = _avg(grp, metric, config.tat_cap_minutes)
 
-    return pd.DataFrame([row])
+    return row
+
+
+def build_daily_summary(records: List[TestRecord], config: Config) -> pd.DataFrame:
+    """One wide row PER DATE: counts + patient count + grouped TAT by shift.
+
+    Records are grouped by their calendar date so a paste spanning several days
+    produces one row per day (sorted; any records with no parseable date land in
+    a final blank-date row). Column order (all driven by config.daily_*):
+      Date | <per-type counts> | Total | Patients | <group·metric·shift TATs…>
+    """
+    # Consistent count-column order across every row, from ALL records.
+    ordered_cats = _daily_category_order(records, config)
+
+    by_date: "dict[str, List[TestRecord]]" = {}
+    for r in records:
+        by_date.setdefault(_record_date(r) or "", []).append(r)
+
+    # Sort by date; the blank "unknown" date sorts last.
+    ordered_dates = sorted(by_date, key=lambda d: (d == "", d))
+
+    rows = [
+        _daily_row(by_date[d], config, d, ordered_cats) for d in ordered_dates
+    ]
+    if not rows:  # no records at all
+        rows = [_daily_row([], config, "", ordered_cats)]
+
+    return pd.DataFrame(rows)
 
 
 def build_summaries(records: List[TestRecord], config: Config) -> Summaries:

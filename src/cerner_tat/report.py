@@ -52,31 +52,33 @@ def write_workbook(summaries: Summaries, output_path: str) -> str:
     return output_path
 
 
-def append_to_master(daily_row: pd.DataFrame, master_path: str) -> str:
-    """Append one Daily Summary row to a running master workbook.
+def append_to_master(daily_rows: pd.DataFrame, master_path: str) -> str:
+    """Append the Daily Summary row(s) to a running master workbook.
 
+    A report can now yield several rows (one per date), and all are appended.
     Creates the file (with a styled header) if it doesn't exist. If it does,
-    the row is aligned to the existing header by column name — any columns the
+    rows are aligned to the existing header by column name — any columns the
     master doesn't have yet are added on the end — so the layout can evolve
     without breaking older rows. Returns the master path.
     """
-    if daily_row is None or daily_row.empty:
+    if daily_rows is None or daily_rows.empty:
         return master_path
 
-    row = daily_row.iloc[0].to_dict()
+    dict_rows = [r.to_dict() for _, r in daily_rows.iterrows()]
 
     if not os.path.exists(master_path):
         os.makedirs(os.path.dirname(master_path) or ".", exist_ok=True)
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Master"
-        headers = list(daily_row.columns)
+        headers = list(daily_rows.columns)
         ws.append(headers)
         for cell in ws[1]:
             cell.fill = _HEADER_FILL
             cell.font = _HEADER_FONT
             cell.alignment = Alignment(horizontal="center", vertical="center")
-        ws.append([row.get(h) for h in headers])
+        for row in dict_rows:
+            ws.append([row.get(h) for h in headers])
         ws.freeze_panes = "A2"
         wb.save(master_path)
         return master_path
@@ -86,15 +88,15 @@ def append_to_master(daily_row: pd.DataFrame, master_path: str) -> str:
     headers = [c.value for c in ws[1]]
 
     # add any brand-new columns to the header
-    for col in daily_row.columns:
+    for col in daily_rows.columns:
         if col not in headers:
             headers.append(col)
-            ws.cell(row=1, column=len(headers), value=col)
-            cell = ws.cell(row=1, column=len(headers))
+            cell = ws.cell(row=1, column=len(headers), value=col)
             cell.fill = _HEADER_FILL
             cell.font = _HEADER_FONT
             cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    ws.append([row.get(h) for h in headers])
+    for row in dict_rows:
+        ws.append([row.get(h) for h in headers])
     wb.save(master_path)
     return master_path

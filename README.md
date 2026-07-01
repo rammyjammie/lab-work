@@ -138,9 +138,10 @@ spreadsheet (not recommended for shared files).
 
 ## Daily Summary: the wide tracking row
 
-The **Daily Summary** sheet is one row per report, laid out as columns so days
+The **Daily Summary** sheet is **one row per date**, laid out as columns so days
 stack into a running, day-over-day tracker (the same wide shape your lab
-already uses):
+already uses). If a single paste/report spans several days, it's split into one
+row per calendar date automatically (a one-day paste is just one row):
 
 ```
 Date | CBC | Chemistry | Cardiac | Coagulation | Urinalysis | Total | Patients | <grouped TAT by shift…>
@@ -181,8 +182,9 @@ python -m cerner_tat.cli report.txt -o output --master output/master.xlsx
 ```
 
 In the GUI, set the optional **Master file** field. The master is created on
-first use and grown one row per report thereafter; new columns are added on the
-end if the layout ever changes, so old rows keep working.
+first use and grown one row per date thereafter (a multi-day report appends
+several rows at once); new columns are added on the end if the layout ever
+changes, so old rows keep working.
 
 ## Tuning it to YOUR reports
 

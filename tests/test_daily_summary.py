@@ -122,6 +122,51 @@ def test_master_no_phi(tmp_path):
         assert token not in blob
 
 
+MULTI_DATE = """CBC w/ Diff
+ST
+06/17/2026 07:49
+06/17/2026 08:06
+06/17/2026 08:06
+06/17/2026 08:13
+16
+0
+6
+7
+23
+Comprehensive Metabolic Panel
+ST
+06/18/2026 09:00
+06/18/2026 09:12
+06/18/2026 09:12
+06/18/2026 10:30
+12
+0
+78
+78
+90"""
+
+
+def test_one_row_per_date():
+    recs = deidentify(enrich(parse_text(MULTI_DATE, CFG), CFG), CFG)
+    d = build_daily_summary(recs, CFG)
+    assert len(d) == 2
+    assert list(d["Date"]) == ["2026-06-17", "2026-06-18"]
+    # counts land on the right day
+    r17 = d[d["Date"] == "2026-06-17"].iloc[0]
+    r18 = d[d["Date"] == "2026-06-18"].iloc[0]
+    assert r17["CBC"] == 1 and r17["Total"] == 1
+    assert r18["Chemistry"] == 1 and r18["Total"] == 1
+
+
+def test_master_append_grows_by_row_count(tmp_path):
+    recs = deidentify(enrich(parse_text(MULTI_DATE, CFG), CFG), CFG)
+    d = build_daily_summary(recs, CFG)
+    master = str(tmp_path / "m.xlsx")
+    append_to_master(d, master)
+    df = pd.read_excel(master, sheet_name="Master")
+    assert len(df) == 2  # both dates appended
+
+
 def test_disabled_produces_empty_daily():
     cfg = load_config()
     cfg.daily_enabled = False
