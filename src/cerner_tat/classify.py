@@ -59,3 +59,39 @@ def enrich(records: Iterable[TestRecord], config: Config) -> list[TestRecord]:
         _ensure_tat(rec)
         out.append(rec)
     return out
+
+
+def deidentify(records: Iterable[TestRecord], config: Config) -> list[TestRecord]:
+    """Strip all patient identifiers from output, replacing them with a stable
+    anonymized "Patient N" index.
+
+    Runs for every input type when `privacy.deidentify` is true (the default), so
+    no name / MRN / accession can reach the spreadsheet regardless of how the
+    report was read. If de-id is off, records are returned unchanged.
+    """
+    records = list(records)
+    if not config.deidentify:
+        return records
+
+    mapping: dict = {}
+    counter = 0
+    for rec in records:
+        # Derive a stable key from whatever identifier the record carries.
+        if rec.patient_index is not None:
+            key = ("idx", rec.patient_index)
+        elif rec.patient_name or rec.mrn:
+            key = ("id", (rec.patient_name or "").upper(), (rec.mrn or "").upper())
+        else:
+            key = None
+
+        if key is not None:
+            if key not in mapping:
+                counter += 1
+                mapping[key] = counter
+            rec.patient_index = mapping[key]
+
+        # Scrub every direct identifier from the record.
+        rec.patient_name = None
+        rec.mrn = None
+        rec.accession = None
+    return records

@@ -18,6 +18,7 @@ samples/*
 !samples/README.md
 !samples/example_report.html
 !samples/example_pasted_report.txt
+!samples/example_pasted_report_by_patient.txt
 
 # OS / editor
 .DS_Store

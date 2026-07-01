@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from .aggregate import Summaries, build_summaries
-from .classify import enrich
+from .classify import deidentify, enrich
 from .config import Config, load_config
 from .models import TestRecord
 from .parsers import parse_file, parse_text
@@ -28,7 +28,7 @@ def process_records(paths: List[str], config: Config) -> List[TestRecord]:
     records: List[TestRecord] = []
     for path in paths:
         records.extend(parse_file(path, config))
-    return enrich(records, config)
+    return deidentify(enrich(records, config), config)
 
 
 def process_file(
@@ -39,7 +39,7 @@ def process_file(
     """Process one report file into one .xlsx workbook."""
     config = config or load_config()
     try:
-        records = enrich(parse_file(path, config), config)
+        records = deidentify(enrich(parse_file(path, config), config), config)
         summaries = build_summaries(records, config)
 
         os.makedirs(output_dir, exist_ok=True)
@@ -81,7 +81,7 @@ def process_text(
     config = config or load_config()
     label = f"<pasted:{output_name}>"
     try:
-        records = enrich(parse_text(text, config), config)
+        records = deidentify(enrich(parse_text(text, config), config), config)
         if not records:
             return ProcessResult(
                 input_path=label,

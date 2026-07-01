@@ -54,19 +54,41 @@ def _is_number(line: str) -> bool:
 def _split_head(head: List[str], config: Config) -> tuple[str, Optional[str]]:
     """Split the lines before the timestamps into (test_name, priority).
 
-    Only the last one or two lines are meaningful: the test name, optionally
-    preceded... no — followed by a priority code line. Any earlier lines are
+    The record's own lines are the test name followed by an optional priority
+    code (e.g. "ST"). Only these last one/two lines matter; any earlier lines are
     report titles/headers picked up before the record and are discarded.
+
+    Priority detection relies on the configured priority_codes list rather than a
+    generic "short uppercase token" rule, so short test names like PT / UA / BMP
+    are never mistaken for a priority code.
     """
     last = head[-1].strip()
-    norm = last.upper()
-    is_priority = norm in config.text_priority_codes or (
-        len(last) <= 3 and last.isalpha() and last.isupper()
-    )
-    if is_priority:
-        name = head[-2].strip() if len(head) >= 2 else ""
-        return name, last
+    if len(head) >= 2 and last.upper() in config.text_priority_codes:
+        return head[-2].strip(), last
     return last, None
+
+
+def _strip_patient_headers(
+    lines: List[str], config: Config
+) -> tuple[List[str], List[Optional[int]]]:
+    """Remove patient/encounter header lines; tag each kept line with a patient #.
+
+    When a whole report is pasted, tests are grouped under a patient header like
+    "6000788 SURNAME,FIRSTNAME EMERGENCY". Those identifying lines are DISCARDED
+    here (never stored), and each remaining line is tagged with an anonymized
+    patient number so tests can be attributed to a de-identified patient.
+    """
+    pattern = config.text_patient_header_pattern
+    kept: List[str] = []
+    tags: List[Optional[int]] = []
+    current: Optional[int] = None
+    for ln in lines:
+        if pattern is not None and pattern.search(ln):
+            current = (current or 0) + 1
+            continue  # drop the identifying line entirely
+        kept.append(ln)
+        tags.append(current)
+    return kept, tags
 
 
 def parse_text(text: str, config: Config) -> List[TestRecord]:
@@ -75,6 +97,7 @@ def parse_text(text: str, config: Config) -> List[TestRecord]:
     text = text.replace("\t", "\n")
     lines = [ln.strip() for ln in text.splitlines()]
     lines = [ln for ln in lines if ln]
+    lines, patient_tags = _strip_patient_headers(lines, config)
 
     dt_fields = config.text_datetime_fields
     tat_fields = config.text_tat_fields
@@ -114,6 +137,7 @@ def parse_text(text: str, config: Config) -> List[TestRecord]:
 
         test_name, priority = _split_head(head, config)
         rec = TestRecord(test_name=test_name)
+        rec.patient_index = patient_tags[start] if start < len(patient_tags) else None
         if priority:
             rec.raw["priority"] = priority
 

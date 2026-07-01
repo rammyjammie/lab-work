@@ -38,9 +38,20 @@ class TestRecord:
 
     category: Optional[str] = None
     shift: Optional[str] = None
+    # Anonymized patient number (1, 2, 3…). Never a name or MRN.
+    patient_index: Optional[int] = None
 
     # raw cell values keyed by canonical field, for debugging / the Detail sheet
     raw: Dict[str, str] = field(default_factory=dict)
+
+    @property
+    def patient_label(self) -> Optional[str]:
+        """A de-identified display label, or the real name if de-id is off."""
+        if self.patient_name:
+            return self.patient_name
+        if self.patient_index is not None:
+            return f"Patient {self.patient_index}"
+        return None
 
     def get_time(self, field_name: str) -> Optional[datetime]:
         return getattr(self, field_name, None) if field_name in TIME_FIELDS else None
@@ -48,7 +59,7 @@ class TestRecord:
     def to_row(self) -> Dict[str, object]:
         """Flatten to a dict suitable for a spreadsheet Detail row."""
         row: Dict[str, object] = {
-            "patient_name": self.patient_name,
+            "patient": self.patient_label,
             "mrn": self.mrn,
             "accession": self.accession,
             "test_name": self.test_name,

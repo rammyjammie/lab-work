@@ -23,9 +23,14 @@ class Summaries:
 def _detail_frame(records: List[TestRecord]) -> pd.DataFrame:
     rows = [r.to_row() for r in records]
     df = pd.DataFrame(rows)
+    # Drop identity columns that are entirely empty (e.g. MRN/Accession after
+    # de-identification, or Patient when the report had no patient grouping).
+    for col in ("patient", "mrn", "accession"):
+        if col in df.columns and df[col].isna().all():
+            df = df.drop(columns=[col])
     # rename to friendly headers
     rename = {
-        "patient_name": "Patient",
+        "patient": "Patient",
         "mrn": "MRN",
         "accession": "Accession",
         "test_name": "Test",
@@ -101,7 +106,9 @@ def _tat_by_type_shift(df: pd.DataFrame) -> pd.DataFrame:
     return grouped.reset_index()
 
 
-def _summary_frame(df: pd.DataFrame, config: Config) -> pd.DataFrame:
+def _summary_frame(
+    df: pd.DataFrame, records: List[TestRecord], config: Config
+) -> pd.DataFrame:
     """A compact at-a-glance table."""
     if df.empty:
         return pd.DataFrame({"Metric": ["Total tests"], "Value": ["0"]})
@@ -109,6 +116,9 @@ def _summary_frame(df: pd.DataFrame, config: Config) -> pd.DataFrame:
     # Values are kept as strings so the blank spacer row stays blank (not NaN)
     # and counts render as "13" rather than "13.0".
     rows = [("Total tests", str(len(df)))]
+    patient_count = len({r.patient_index for r in records if r.patient_index is not None})
+    if patient_count:
+        rows.append(("Distinct patients", str(patient_count)))
     for shift in [config.day_label, config.night_label]:
         rows.append((f"Tests — {shift} shift", str(int((df["Shift"] == shift).sum()))))
     missing_shift = int(df["Shift"].isna().sum())
@@ -129,5 +139,5 @@ def build_summaries(records: List[TestRecord], config: Config) -> Summaries:
         counts_by_type=_counts_by_type(detail, config),
         tat_by_type=_tat_by_type(detail),
         tat_by_type_shift=_tat_by_type_shift(detail),
-        summary=_summary_frame(detail, config),
+        summary=_summary_frame(detail, records, config),
     )

@@ -82,6 +82,9 @@ class Config:
     text_datetime_fields: List[str] = field(default_factory=lambda: list(TIME_FIELDS))
     text_tat_fields: List[str] = field(default_factory=lambda: list(TAT_FIELDS))
     text_priority_codes: set = field(default_factory=set)
+    text_patient_header_pattern: object = None  # compiled regex or None
+    # privacy
+    deidentify: bool = True
 
     @property
     def all_fields(self) -> List[str]:
@@ -152,5 +155,17 @@ def load_config(path: str | None = None) -> Config:
     cfg.text_priority_codes = {
         str(c).strip().upper() for c in (text_layout.get("priority_codes") or [])
     }
+    header_pat = text_layout.get("patient_header_pattern")
+    if header_pat:
+        try:
+            cfg.text_patient_header_pattern = re.compile(header_pat)
+        except re.error as exc:
+            raise ValueError(
+                f"Invalid patient_header_pattern {header_pat!r}: {exc}"
+            ) from exc
+
+    # --- privacy ---
+    privacy = raw.get("privacy", {}) or {}
+    cfg.deidentify = bool(privacy.get("deidentify", True))
 
     return cfg

@@ -91,6 +91,43 @@ report's column order differs you can adjust it there without touching code. You
 can also save the copied text as a `.txt` file and process it like any other
 input.
 
+### Pasting a whole day at once (grouped by patient)
+
+If you paste an entire report where tests are grouped under patient headers like:
+
+```
+6000788 SURNAME,FIRSTNAME EMERGENCY
+PT
+ST
+06/17/2026 07:54
+... (timestamps + TAT values)
+CBC w/ Diff
+ST
+...
+6000799 OTHERSURNAME,OTHERFIRST EMERGENCY
+Troponin I
+...
+```
+
+…the tool **automatically detects and discards those patient/encounter header
+lines** — the name, MRN, and location are *never* written to the spreadsheet.
+Each patient is instead counted and shown only as an anonymized **`Patient 1`,
+`Patient 2`…** label, so you still get a patient count and can see which tests
+belonged to the same (unnamed) patient. This lets you copy-paste the full day
+in one go. See `samples/example_pasted_report_by_patient.txt` for the format.
+
+Which lines count as a patient header is controlled by
+`text_layout.patient_header_pattern` in the config (default: an MRN number
+followed by a `LAST,FIRST` name). Set it to empty to turn the feature off.
+
+### De-identification
+
+By default (`privacy.deidentify: true` in the config), **no patient name, MRN,
+or accession number is ever written to the output** — for any input type. Only
+the anonymized `Patient N` label and a patient count appear. Set
+`privacy.deidentify: false` only if you deliberately want identifiers in the
+spreadsheet (not recommended for shared files).
+
 ---
 
 ## Tuning it to YOUR reports

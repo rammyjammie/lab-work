@@ -59,7 +59,26 @@ text_layout:
     - tat_lab_to_complete
     - tat_order_to_complete
   # Lines treated as a priority/class code (not part of the test name).
-  priority_codes: ["ST", "RT", "STAT", "ROUTINE", "TIMED", "PREOP", "NOW", "ASAP", "TODAY"]
+  priority_codes: ["ST", "RT", "STAT", "ROUTINE", "TIMED", "PREOP", "NOW", "ASAP", "TODAY", "RN", "UN"]
+
+  # Patient / encounter header lines to DISCARD when pasting a whole report that
+  # is grouped by patient. These lines look like:
+  #     6000788 SURNAME,FIRSTNAME EMERGENCY
+  # i.e. an MRN, then "LASTNAME,FIRSTNAME", then a location/encounter class.
+  # The matching line is dropped entirely (name and MRN are never written to
+  # output); the tool only counts how many distinct patients appear. Set to an
+  # empty value ("") to disable this and paste test/TAT data only.
+  patient_header_pattern: "^\\d{4,}\\s+.+,.+"
+
+# -----------------------------------------------------------------------------
+# PRIVACY
+# When deidentify is true (recommended), no patient name, MRN, or accession is
+# ever written to the spreadsheet. Each patient is shown only as an anonymized
+# "Patient N" label so you can still see which tests share a patient and get a
+# patient count — with zero PHI in the output file.
+# -----------------------------------------------------------------------------
+privacy:
+  deidentify: true
 
 # -----------------------------------------------------------------------------
 # SHIFTS
