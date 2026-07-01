@@ -48,7 +48,10 @@ def write_workbook(summaries: Summaries, output_path: str) -> str:
         _write_sheet(writer, "Counts by Type", summaries.counts_by_type)
         _write_sheet(writer, "TAT by Type", summaries.tat_by_type)
         _write_sheet(writer, "TAT by Type & Shift", summaries.tat_by_type_shift)
-        _write_sheet(writer, "Detail", summaries.detail)
+        # Detail is omitted entirely when empty (e.g. privacy.include_detail_sheet
+        # is off) rather than written as an empty placeholder sheet.
+        if summaries.detail is not None and not summaries.detail.empty:
+            _write_sheet(writer, "Detail", summaries.detail)
     return output_path
 
 

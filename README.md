@@ -225,13 +225,24 @@ python -m cerner_tat.cli reports/*.txt -o output_folder --master output_folder/m
 
 ## Security notes
 
-- **No network access.** The code imports only local libraries; it never opens a
-  socket or calls a web service. You can run it on an air-gapped machine.
-- **No telemetry.** Nothing is logged or sent anywhere.
-- **Your data stays put.** Input files are read locally; output `.xlsx` files are
-  written only to the folder you choose.
-- Keep input/output folders inside your lab's secured, access-controlled storage,
-  the same as any other PHI.
+See **[SECURITY.md](SECURITY.md)** for the full security model, threat model, and
+the split between what the tool enforces and what your institution must provide.
+In short:
+
+- **Offline is enforced, not just promised.** Importing the package installs a
+  network kill-switch that blocks all outbound connections and DNS — so patient
+  data cannot leave the machine, even from a dependency. Verify with
+  `python -m pytest tests/test_security.py -k network -v`.
+- **De-identification on by default.** No name, MRN, or accession is written to
+  output; patients show only as `Patient N`. Patient header lines are discarded.
+- **Fail-closed PHI guard.** Before writing, every sheet is scanned; if anything
+  looks like a name/MRN while de-id is on, the tool refuses to write the file.
+- **Data minimization.** `privacy.include_detail_sheet` and
+  `privacy.include_timestamps` let you trim the output further.
+- **No telemetry, no hidden copies.** Only the `.xlsx` files you ask for are
+  written, to the folder you choose.
+- Still keep input/output folders inside your lab's secured, access-controlled,
+  encrypted storage, the same as any other PHI — that part is on the institution.
 
 ---
 

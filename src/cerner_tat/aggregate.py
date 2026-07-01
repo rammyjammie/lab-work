@@ -8,7 +8,7 @@ from typing import List, Optional
 
 import pandas as pd
 
-from .config import TAT_FIELDS, TAT_LABELS, TAT_SHORT_LABELS, Config
+from .config import TAT_FIELDS, TAT_LABELS, TAT_SHORT_LABELS, TIME_FIELDS, Config
 from .models import TestRecord
 
 
@@ -22,7 +22,7 @@ class Summaries:
     daily: pd.DataFrame
 
 
-def _detail_frame(records: List[TestRecord]) -> pd.DataFrame:
+def _detail_frame(records: List[TestRecord], config: Config = None) -> pd.DataFrame:
     rows = [r.to_row() for r in records]
     df = pd.DataFrame(rows)
     # Drop identity columns that are entirely empty (e.g. MRN/Accession after
@@ -30,6 +30,9 @@ def _detail_frame(records: List[TestRecord]) -> pd.DataFrame:
     for col in ("patient", "mrn", "accession"):
         if col in df.columns and df[col].isna().all():
             df = df.drop(columns=[col])
+    # Data minimization: optionally drop exact timestamps.
+    if config is not None and not config.include_timestamps:
+        df = df.drop(columns=[t for t in TIME_FIELDS if t in df.columns])
     # rename to friendly headers
     rename = {
         "patient": "Patient",
@@ -255,10 +258,12 @@ def build_daily_summary(records: List[TestRecord], config: Config) -> pd.DataFra
 
 
 def build_summaries(records: List[TestRecord], config: Config) -> Summaries:
-    detail = _detail_frame(records)
+    detail = _detail_frame(records, config)
     masked = _mask_outliers(detail, config.tat_cap_minutes)  # for averages only
+    # Data minimization: optionally omit the per-test Detail sheet from output.
+    detail_out = detail if config.include_detail_sheet else pd.DataFrame()
     return Summaries(
-        detail=detail,
+        detail=detail_out,
         counts_by_type=_counts_by_type(detail, config),
         tat_by_type=_tat_by_type(masked),
         tat_by_type_shift=_tat_by_type_shift(masked),

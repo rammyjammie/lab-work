@@ -12,6 +12,22 @@ from .config import Config, load_config
 from .models import TestRecord
 from .parsers import parse_file, parse_text
 from .report import append_to_master, write_workbook
+from .security import assert_no_phi
+
+
+def _guard_output(summaries, config) -> None:
+    """Fail closed before writing: refuse if any sheet looks like it holds PHI."""
+    assert_no_phi(
+        [
+            summaries.daily,
+            summaries.summary,
+            summaries.counts_by_type,
+            summaries.tat_by_type,
+            summaries.tat_by_type_shift,
+            summaries.detail,
+        ],
+        config,
+    )
 
 
 @dataclass
@@ -46,6 +62,7 @@ def process_file(
     try:
         records = deidentify(enrich(parse_file(path, config), config), config)
         summaries = build_summaries(records, config)
+        _guard_output(summaries, config)
 
         os.makedirs(output_dir, exist_ok=True)
         base = os.path.splitext(os.path.basename(path))[0]
@@ -98,6 +115,7 @@ def process_text(
                 error="No test records were recognized in the pasted text.",
             )
         summaries = build_summaries(records, config)
+        _guard_output(summaries, config)
 
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, f"{output_name}_TAT.xlsx")

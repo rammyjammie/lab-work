@@ -98,6 +98,8 @@ class Config:
     tat_cap_minutes: object = None  # float upper cap, or None to disable
     # privacy
     deidentify: bool = True
+    include_detail_sheet: bool = True
+    include_timestamps: bool = True
     # wide "Daily Summary" layout
     daily_enabled: bool = True
     daily_metrics: List[str] = field(default_factory=list)
@@ -195,6 +197,8 @@ def load_config(path: str | None = None) -> Config:
     # --- privacy ---
     privacy = raw.get("privacy", {}) or {}
     cfg.deidentify = bool(privacy.get("deidentify", True))
+    cfg.include_detail_sheet = bool(privacy.get("include_detail_sheet", True))
+    cfg.include_timestamps = bool(privacy.get("include_timestamps", True))
 
     # --- daily (wide) summary ---
     daily = raw.get("daily_summary", {}) or {}

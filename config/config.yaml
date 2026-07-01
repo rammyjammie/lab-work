@@ -85,6 +85,16 @@ text_layout:
 privacy:
   deidentify: true
 
+  # Data minimization. Turn these off to keep the output as lean as possible —
+  # useful if the spreadsheets are shared beyond the lab. Counts and averaged TAT
+  # never contain PHI regardless.
+  #   include_detail_sheet: write the per-test Detail sheet at all.
+  #   include_timestamps:   include exact order/collect/receive/complete times on
+  #                         the Detail sheet (a specific time + test can be a
+  #                         quasi-identifier for a small patient set).
+  include_detail_sheet: true
+  include_timestamps: true
+
 # -----------------------------------------------------------------------------
 # ANALYSIS
 # Outlier handling for the averaged TAT metrics.
