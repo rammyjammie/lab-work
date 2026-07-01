@@ -70,6 +70,21 @@ def _counts_by_type(df: pd.DataFrame, config: Config) -> pd.DataFrame:
     return pivot[cols].reset_index()
 
 
+def _mask_outliers(df: pd.DataFrame, cap) -> pd.DataFrame:
+    """Return a copy of the detail frame with TAT values > cap set to NaN.
+
+    Used only for the AVERAGED sheets — the Detail sheet keeps the real values.
+    """
+    if cap is None or df.empty:
+        return df
+    masked = df.copy()
+    tat_cols = [TAT_LABELS[k] + " (min)" for k in TAT_FIELDS if TAT_LABELS[k] + " (min)" in df.columns]
+    for col in tat_cols:
+        masked.loc[masked[col] > cap, col] = pd.NA
+        masked[col] = pd.to_numeric(masked[col], errors="coerce")
+    return masked
+
+
 def _tat_by_type(df: pd.DataFrame) -> pd.DataFrame:
     """Average of each TAT metric per category (plus an All-types row)."""
     if df.empty:
@@ -85,7 +100,9 @@ def _tat_by_type(df: pd.DataFrame) -> pd.DataFrame:
     overall = df[present].mean().round(1)
     overall["N"] = len(df)
     grouped.loc["All Types"] = overall
-    return grouped.reset_index()
+    out = grouped.reset_index()
+    out["N"] = out["N"].astype(int)
+    return out
 
 
 def _tat_by_type_shift(df: pd.DataFrame) -> pd.DataFrame:
@@ -105,7 +122,9 @@ def _tat_by_type_shift(df: pd.DataFrame) -> pd.DataFrame:
         .rename("N")
     )
     grouped.insert(0, "N", counts)
-    return grouped.reset_index()
+    out = grouped.reset_index()
+    out["N"] = out["N"].astype(int)
+    return out
 
 
 def _summary_frame(
@@ -121,6 +140,16 @@ def _summary_frame(
     patient_count = len({r.patient_index for r in records if r.patient_index is not None})
     if patient_count:
         rows.append(("Distinct patients", str(patient_count)))
+    cap = config.tat_cap_minutes
+    if cap is not None:
+        excluded = sum(
+            1
+            for r in records
+            for m in TAT_FIELDS
+            if getattr(r, m) is not None and getattr(r, m) > cap
+        )
+        if excluded:
+            rows.append((f"TAT values excluded (> {cap:g} min)", str(excluded)))
     for shift in [config.day_label, config.night_label]:
         rows.append((f"Tests — {shift} shift", str(int((df["Shift"] == shift).sum()))))
     missing_shift = int(df["Shift"].isna().sum())
@@ -146,8 +175,12 @@ def _report_date(records: List[TestRecord]) -> Optional[str]:
     return Counter(dates).most_common(1)[0][0].isoformat()
 
 
-def _avg(records: List[TestRecord], metric: str) -> Optional[float]:
-    vals = [getattr(r, metric) for r in records if getattr(r, metric) is not None]
+def _avg(records: List[TestRecord], metric: str, cap=None) -> Optional[float]:
+    vals = [
+        v
+        for v in (getattr(r, metric) for r in records)
+        if v is not None and (cap is None or v <= cap)
+    ]
     if not vals:
         return None
     return round(sum(vals) / len(vals), 1)
@@ -194,18 +227,19 @@ def build_daily_summary(records: List[TestRecord], config: Config) -> pd.DataFra
             grp = [r for r in shift_recs if r.category in catset]
             for metric in config.daily_metrics:
                 col = f"{group} {TAT_SHORT_LABELS[metric]} ({shift})"
-                row[col] = _avg(grp, metric)
+                row[col] = _avg(grp, metric, config.tat_cap_minutes)
 
     return pd.DataFrame([row])
 
 
 def build_summaries(records: List[TestRecord], config: Config) -> Summaries:
     detail = _detail_frame(records)
+    masked = _mask_outliers(detail, config.tat_cap_minutes)  # for averages only
     return Summaries(
         detail=detail,
         counts_by_type=_counts_by_type(detail, config),
-        tat_by_type=_tat_by_type(detail),
-        tat_by_type_shift=_tat_by_type_shift(detail),
+        tat_by_type=_tat_by_type(masked),
+        tat_by_type_shift=_tat_by_type_shift(masked),
         summary=_summary_frame(detail, records, config),
         daily=build_daily_summary(records, config) if config.daily_enabled else pd.DataFrame(),
     )

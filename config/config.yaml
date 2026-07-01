@@ -70,6 +70,11 @@ text_layout:
   # empty value ("") to disable this and paste test/TAT data only.
   patient_header_pattern: "^\\d{4,}\\s+.+,.+"
 
+  # Fallback patient dividers: when there's no MRN + name header, a bare marker
+  # line can still separate patients. Any line matching one of these (whole line,
+  # case-insensitive, punctuation ignored) starts a new patient and is discarded.
+  patient_delimiters: ["PATIENT"]
+
 # -----------------------------------------------------------------------------
 # PRIVACY
 # When deidentify is true (recommended), no patient name, MRN, or accession is
@@ -79,6 +84,18 @@ text_layout:
 # -----------------------------------------------------------------------------
 privacy:
   deidentify: true
+
+# -----------------------------------------------------------------------------
+# ANALYSIS
+# Outlier handling for the averaged TAT metrics.
+# -----------------------------------------------------------------------------
+analysis:
+  # Exclude any single TAT value greater than this many minutes from the
+  # AVERAGES (e.g. urine cultures that take thousands of minutes and would
+  # otherwise skew the numbers). The raw values still appear on the Detail sheet;
+  # they're just left out of the averaged metrics, and the count of excluded
+  # values is reported on the Summary sheet. Set to null / empty to disable.
+  tat_cap_minutes: 500
 
 # -----------------------------------------------------------------------------
 # DAILY (WIDE) SUMMARY

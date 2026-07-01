@@ -31,7 +31,7 @@ from __future__ import annotations
 import re
 from typing import List, Optional
 
-from ..config import Config
+from ..config import Config, normalize_header
 from ..models import TestRecord
 from .base import parse_duration_minutes, parse_timestamp
 
@@ -77,15 +77,21 @@ def _strip_patient_headers(
     "6000788 SURNAME,FIRSTNAME EMERGENCY". Those identifying lines are DISCARDED
     here (never stored), and each remaining line is tagged with an anonymized
     patient number so tests can be attributed to a de-identified patient.
+
+    If there's no MRN + name header, a bare divider line (e.g. "PATIENT", from
+    config's patient_delimiters) can also start a new patient.
     """
     pattern = config.text_patient_header_pattern
+    delimiters = config.text_patient_delimiters
     kept: List[str] = []
     tags: List[Optional[int]] = []
     current: Optional[int] = None
     for ln in lines:
-        if pattern is not None and pattern.search(ln):
+        is_header = pattern is not None and pattern.search(ln)
+        is_delimiter = bool(delimiters) and normalize_header(ln) in delimiters
+        if is_header or is_delimiter:
             current = (current or 0) + 1
-            continue  # drop the identifying line entirely
+            continue  # drop the divider/identifying line entirely
         kept.append(ln)
         tags.append(current)
     return kept, tags

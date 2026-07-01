@@ -121,6 +121,11 @@ Which lines count as a patient header is controlled by
 `text_layout.patient_header_pattern` in the config (default: an MRN number
 followed by a `LAST,FIRST` name). Set it to empty to turn the feature off.
 
+If a report has **no MRN + name header**, a bare divider line can still separate
+patients: any line matching `text_layout.patient_delimiters` (default:
+`PATIENT`) starts a new patient and is discarded. So a paste like
+`PATIENT` / test block / `PATIENT` / test block is split into two patients.
+
 ### De-identification
 
 By default (`privacy.deidentify: true` in the config), **no patient name, MRN,
@@ -156,6 +161,15 @@ because it's just Day+Night combined).
 All of this is controlled under `daily_summary` in `config/config.yaml` — change
 the metrics, the groups (e.g. one per test type), or the shifts without touching
 code.
+
+### Outlier cap (e.g. urine cultures)
+
+Some tests — urine cultures especially — take thousands of minutes and would
+wreck an average. Any single TAT value above `analysis.tat_cap_minutes`
+(default **500**) is **left out of the averaged metrics** on every summary sheet.
+The raw values are still shown on the **Detail** sheet, and the **Summary** sheet
+reports how many values were excluded, so nothing is hidden. Set the cap to
+empty to disable it.
 
 ### Running master workbook
 

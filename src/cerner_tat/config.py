@@ -93,6 +93,9 @@ class Config:
     text_tat_fields: List[str] = field(default_factory=lambda: list(TAT_FIELDS))
     text_priority_codes: set = field(default_factory=set)
     text_patient_header_pattern: object = None  # compiled regex or None
+    text_patient_delimiters: set = field(default_factory=set)
+    # analysis
+    tat_cap_minutes: object = None  # float upper cap, or None to disable
     # privacy
     deidentify: bool = True
     # wide "Daily Summary" layout
@@ -180,6 +183,14 @@ def load_config(path: str | None = None) -> Config:
             raise ValueError(
                 f"Invalid patient_header_pattern {header_pat!r}: {exc}"
             ) from exc
+    cfg.text_patient_delimiters = {
+        normalize_header(d) for d in (text_layout.get("patient_delimiters") or [])
+    }
+
+    # --- analysis / outlier cap ---
+    analysis = raw.get("analysis", {}) or {}
+    cap = analysis.get("tat_cap_minutes", None)
+    cfg.tat_cap_minutes = float(cap) if cap not in (None, "", False) else None
 
     # --- privacy ---
     privacy = raw.get("privacy", {}) or {}
