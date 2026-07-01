@@ -53,6 +53,10 @@ them.
 
 ## Quick start
 
+> **Installing on a locked-down hospital workstation** (no admin rights, no
+> internet, or IT-approval required)? See **[INSTALL.md](INSTALL.md)** for the
+> IT-managed, offline-bundle, and standalone-executable paths.
+
 ### 1. Install Python 3.10+
 
 - **Windows / macOS:** download from [python.org](https://www.python.org/downloads/).

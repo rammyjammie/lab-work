@@ -13,6 +13,9 @@ venv/
 output/
 *.xlsx
 
+# Offline install bundle (downloaded wheels — platform-specific, not committed)
+vendor/
+
 # Keep real PHI out of the repo: only the synthetic example is tracked.
 samples/*
 !samples/README.md
