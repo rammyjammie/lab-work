@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+
+import openpyxl
 import pandas as pd
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -39,9 +42,59 @@ def _write_sheet(writer: pd.ExcelWriter, name: str, df: pd.DataFrame) -> None:
 def write_workbook(summaries: Summaries, output_path: str) -> str:
     """Write all sheets to output_path. Returns the path."""
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        if summaries.daily is not None and not summaries.daily.empty:
+            _write_sheet(writer, "Daily Summary", summaries.daily)
         _write_sheet(writer, "Summary", summaries.summary)
         _write_sheet(writer, "Counts by Type", summaries.counts_by_type)
         _write_sheet(writer, "TAT by Type", summaries.tat_by_type)
         _write_sheet(writer, "TAT by Type & Shift", summaries.tat_by_type_shift)
         _write_sheet(writer, "Detail", summaries.detail)
     return output_path
+
+
+def append_to_master(daily_row: pd.DataFrame, master_path: str) -> str:
+    """Append one Daily Summary row to a running master workbook.
+
+    Creates the file (with a styled header) if it doesn't exist. If it does,
+    the row is aligned to the existing header by column name — any columns the
+    master doesn't have yet are added on the end — so the layout can evolve
+    without breaking older rows. Returns the master path.
+    """
+    if daily_row is None or daily_row.empty:
+        return master_path
+
+    row = daily_row.iloc[0].to_dict()
+
+    if not os.path.exists(master_path):
+        os.makedirs(os.path.dirname(master_path) or ".", exist_ok=True)
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Master"
+        headers = list(daily_row.columns)
+        ws.append(headers)
+        for cell in ws[1]:
+            cell.fill = _HEADER_FILL
+            cell.font = _HEADER_FONT
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+        ws.append([row.get(h) for h in headers])
+        ws.freeze_panes = "A2"
+        wb.save(master_path)
+        return master_path
+
+    wb = openpyxl.load_workbook(master_path)
+    ws = wb["Master"] if "Master" in wb.sheetnames else wb.active
+    headers = [c.value for c in ws[1]]
+
+    # add any brand-new columns to the header
+    for col in daily_row.columns:
+        if col not in headers:
+            headers.append(col)
+            ws.cell(row=1, column=len(headers), value=col)
+            cell = ws.cell(row=1, column=len(headers))
+            cell.fill = _HEADER_FILL
+            cell.font = _HEADER_FONT
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    ws.append([row.get(h) for h in headers])
+    wb.save(master_path)
+    return master_path

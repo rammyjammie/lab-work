@@ -11,7 +11,7 @@ from .classify import deidentify, enrich
 from .config import Config, load_config
 from .models import TestRecord
 from .parsers import parse_file, parse_text
-from .report import write_workbook
+from .report import append_to_master, write_workbook
 
 
 @dataclass
@@ -35,8 +35,13 @@ def process_file(
     path: str,
     output_dir: str,
     config: Optional[Config] = None,
+    master_path: Optional[str] = None,
 ) -> ProcessResult:
-    """Process one report file into one .xlsx workbook."""
+    """Process one report file into one .xlsx workbook.
+
+    If master_path is given, the report's one-row Daily Summary is also appended
+    to that running master workbook.
+    """
     config = config or load_config()
     try:
         records = deidentify(enrich(parse_file(path, config), config), config)
@@ -46,6 +51,8 @@ def process_file(
         base = os.path.splitext(os.path.basename(path))[0]
         output_path = os.path.join(output_dir, f"{base}_TAT.xlsx")
         write_workbook(summaries, output_path)
+        if master_path:
+            append_to_master(summaries.daily, master_path)
 
         return ProcessResult(
             input_path=path,
@@ -76,6 +83,7 @@ def process_text(
     output_dir: str,
     output_name: str = "pasted_report",
     config: Optional[Config] = None,
+    master_path: Optional[str] = None,
 ) -> ProcessResult:
     """Process pasted report text into one .xlsx workbook."""
     config = config or load_config()
@@ -94,6 +102,8 @@ def process_text(
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, f"{output_name}_TAT.xlsx")
         write_workbook(summaries, output_path)
+        if master_path:
+            append_to_master(summaries.daily, master_path)
 
         return ProcessResult(
             input_path=label,

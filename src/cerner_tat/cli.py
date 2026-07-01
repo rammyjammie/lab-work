@@ -15,12 +15,18 @@ def main(argv: List[str] | None = None) -> int:
         prog="cerner_tat",
         description="Turn Cerner HTML/PDF lab reports into a TAT spreadsheet (fully local).",
     )
-    parser.add_argument("inputs", nargs="+", help="Report files (.html/.htm/.pdf)")
+    parser.add_argument("inputs", nargs="+", help="Report files (.html/.htm/.pdf/.txt)")
     parser.add_argument(
         "-o", "--output-dir", default="output", help="Folder for the .xlsx files"
     )
     parser.add_argument(
         "-c", "--config", default=None, help="Path to a config.yaml (optional)"
+    )
+    parser.add_argument(
+        "-m",
+        "--master",
+        default=None,
+        help="Append each report's Daily Summary row to this running master .xlsx",
     )
     args = parser.parse_args(argv)
 
@@ -28,7 +34,7 @@ def main(argv: List[str] | None = None) -> int:
 
     exit_code = 0
     for path in args.inputs:
-        result = process_file(path, args.output_dir, config)
+        result = process_file(path, args.output_dir, config, master_path=args.master)
         if result.error:
             print(f"[FAIL] {path}: {result.error}", file=sys.stderr)
             exit_code = 1
@@ -36,6 +42,8 @@ def main(argv: List[str] | None = None) -> int:
             print(
                 f"[ OK ] {path}: {result.record_count} tests -> {result.output_path}"
             )
+    if args.master:
+        print(f"       Daily Summary rows appended to {args.master}")
     return exit_code
 
 

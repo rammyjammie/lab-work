@@ -33,6 +33,7 @@ class App:
         self.output_dir = tk.StringVar(value=os.path.abspath("output"))
         self.config_path = tk.StringVar(value="")
         self.paste_name = tk.StringVar(value="pasted_report")
+        self.master_path = tk.StringVar(value="")
 
         self._build()
 
@@ -65,6 +66,15 @@ class App:
             side="left", fill="x", expand=True, padx=6
         )
         ttk.Button(out_frame, text="Browse…", command=self.choose_output).pack(side="left")
+
+        # optional running master workbook
+        master_frame = ttk.Frame(self.root)
+        master_frame.pack(fill="x", **pad)
+        ttk.Label(master_frame, text="Master file (optional):").pack(side="left")
+        ttk.Entry(master_frame, textvariable=self.master_path).pack(
+            side="left", fill="x", expand=True, padx=6
+        )
+        ttk.Button(master_frame, text="Browse…", command=self.choose_master).pack(side="left")
 
         # optional config
         cfg_frame = ttk.Frame(self.root)
@@ -161,6 +171,16 @@ class App:
         if f:
             self.config_path.set(f)
 
+    def choose_master(self) -> None:
+        f = filedialog.asksaveasfilename(
+            title="Choose or create a master workbook",
+            defaultextension=".xlsx",
+            filetypes=[("Excel", "*.xlsx"), ("All", "*.*")],
+            confirmoverwrite=False,
+        )
+        if f:
+            self.master_path.set(f)
+
     def _log(self, msg: str) -> None:
         self.log.config(state="normal")
         self.log.insert(tk.END, msg + "\n")
@@ -191,13 +211,14 @@ class App:
             cfg_path = self.config_path.get().strip() or None
             config = load_config(cfg_path)
             out_dir = self.output_dir.get().strip() or "output"
+            master = self.master_path.get().strip() or None
             kind, data = payload
 
             if kind == "files":
                 ok, fail = 0, 0
                 for path in data:
                     self.root.after(0, self._log, f"Processing {os.path.basename(path)}…")
-                    result = process_file(path, out_dir, config)
+                    result = process_file(path, out_dir, config, master_path=master)
                     if result.error:
                         fail += 1
                         self.root.after(0, self._log, f"   ERROR: {result.error}")
@@ -211,7 +232,7 @@ class App:
             else:
                 name = self.paste_name.get().strip() or "pasted_report"
                 self.root.after(0, self._log, "Processing pasted text…")
-                result = process_text(data, out_dir, name, config)
+                result = process_text(data, out_dir, name, config, master_path=master)
                 if result.error:
                     self.root.after(0, self._log, f"   ERROR: {result.error}")
                 else:

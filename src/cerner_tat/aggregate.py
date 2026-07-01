@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import List, Optional
 
 import pandas as pd
 
-from .config import TAT_FIELDS, TAT_LABELS, Config
+from .config import TAT_FIELDS, TAT_LABELS, TAT_SHORT_LABELS, Config
 from .models import TestRecord
 
 
@@ -18,6 +19,7 @@ class Summaries:
     tat_by_type: pd.DataFrame
     tat_by_type_shift: pd.DataFrame
     summary: pd.DataFrame
+    daily: pd.DataFrame
 
 
 def _detail_frame(records: List[TestRecord]) -> pd.DataFrame:
@@ -132,6 +134,71 @@ def _summary_frame(
     return pd.DataFrame(rows, columns=["Metric", "Value"])
 
 
+def _report_date(records: List[TestRecord]) -> Optional[str]:
+    """The report's date = the most common collection date across records."""
+    dates = []
+    for r in records:
+        ts = r.collected_time or r.order_time or r.complete_time
+        if ts is not None:
+            dates.append(ts.date())
+    if not dates:
+        return None
+    return Counter(dates).most_common(1)[0][0].isoformat()
+
+
+def _avg(records: List[TestRecord], metric: str) -> Optional[float]:
+    vals = [getattr(r, metric) for r in records if getattr(r, metric) is not None]
+    if not vals:
+        return None
+    return round(sum(vals) / len(vals), 1)
+
+
+def _daily_category_order(records: List[TestRecord], config: Config) -> List[str]:
+    """Count-column order: the grouped categories first, then any extras seen."""
+    ordered: List[str] = []
+    for cats in config.daily_tat_groups.values():
+        for c in cats:
+            if c not in ordered:
+                ordered.append(c)
+    for r in records:
+        if r.category and r.category not in ordered:
+            ordered.append(r.category)
+    return ordered
+
+
+def build_daily_summary(records: List[TestRecord], config: Config) -> pd.DataFrame:
+    """One wide row per report: counts + patient count + grouped TAT by shift.
+
+    Column order (all driven by config.daily_*):
+      Date | <per-type counts> | Total | Patients | <group·metric·shift TATs…>
+    """
+    row: dict = {"Date": _report_date(records) or ""}
+
+    if config.daily_include_counts:
+        counts = Counter(r.category for r in records if r.category)
+        for cat in _daily_category_order(records, config):
+            row[cat] = counts.get(cat, 0)
+        row["Total"] = len(records)
+
+    if config.daily_include_patient_count:
+        row["Patients"] = len(
+            {r.patient_index for r in records if r.patient_index is not None}
+        )
+
+    for shift in config.daily_shifts:
+        shift_recs = (
+            records if shift == "Overall" else [r for r in records if r.shift == shift]
+        )
+        for group, cats in config.daily_tat_groups.items():
+            catset = set(cats)
+            grp = [r for r in shift_recs if r.category in catset]
+            for metric in config.daily_metrics:
+                col = f"{group} {TAT_SHORT_LABELS[metric]} ({shift})"
+                row[col] = _avg(grp, metric)
+
+    return pd.DataFrame([row])
+
+
 def build_summaries(records: List[TestRecord], config: Config) -> Summaries:
     detail = _detail_frame(records)
     return Summaries(
@@ -140,4 +207,5 @@ def build_summaries(records: List[TestRecord], config: Config) -> Summaries:
         tat_by_type=_tat_by_type(detail),
         tat_by_type_shift=_tat_by_type_shift(detail),
         summary=_summary_frame(detail, records, config),
+        daily=build_daily_summary(records, config) if config.daily_enabled else pd.DataFrame(),
     )

@@ -31,6 +31,16 @@ TAT_LABELS = {
     "tat_order_to_complete": "Order → Complete",
 }
 
+# Compact labels for the wide "Daily Summary" columns (kept short so a day fits
+# on one row).
+TAT_SHORT_LABELS = {
+    "tat_order_to_collected": "Order→Coll",
+    "tat_collected_to_lab": "Coll→Lab",
+    "tat_collected_to_complete": "Coll→Comp",
+    "tat_lab_to_complete": "Lab→Comp",
+    "tat_order_to_complete": "Order→Comp",
+}
+
 # How each TAT metric is derived from timestamps when the report doesn't supply
 # the column directly: metric -> (start_field, end_field).
 TAT_FROM_TIMES = {
@@ -85,6 +95,13 @@ class Config:
     text_patient_header_pattern: object = None  # compiled regex or None
     # privacy
     deidentify: bool = True
+    # wide "Daily Summary" layout
+    daily_enabled: bool = True
+    daily_metrics: List[str] = field(default_factory=list)
+    daily_tat_groups: "Dict[str, List[str]]" = field(default_factory=dict)
+    daily_shifts: List[str] = field(default_factory=list)
+    daily_include_counts: bool = True
+    daily_include_patient_count: bool = True
 
     @property
     def all_fields(self) -> List[str]:
@@ -167,5 +184,26 @@ def load_config(path: str | None = None) -> Config:
     # --- privacy ---
     privacy = raw.get("privacy", {}) or {}
     cfg.deidentify = bool(privacy.get("deidentify", True))
+
+    # --- daily (wide) summary ---
+    daily = raw.get("daily_summary", {}) or {}
+    cfg.daily_enabled = bool(daily.get("enabled", True))
+    metrics = daily.get("metrics") or [
+        "tat_order_to_collected",
+        "tat_collected_to_lab",
+        "tat_lab_to_complete",
+        "tat_order_to_complete",
+    ]
+    cfg.daily_metrics = [m for m in metrics if m in TAT_FIELDS]
+    groups = daily.get("tat_groups") or {
+        "Blood": ["CBC", "Chemistry", "Cardiac", "Coagulation"],
+        "Urine": ["Urinalysis"],
+    }
+    cfg.daily_tat_groups = {
+        str(name): list(cats or []) for name, cats in groups.items()
+    }
+    cfg.daily_shifts = [str(s) for s in (daily.get("shifts") or ["Day", "Night"])]
+    cfg.daily_include_counts = bool(daily.get("include_counts", True))
+    cfg.daily_include_patient_count = bool(daily.get("include_patient_count", True))
 
     return cfg

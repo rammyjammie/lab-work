@@ -81,6 +81,42 @@ privacy:
   deidentify: true
 
 # -----------------------------------------------------------------------------
+# DAILY (WIDE) SUMMARY
+# Produces a single row per report — columns = metrics — designed to stack into a
+# running, day-over-day tracking sheet (the "Daily Summary" sheet, and the
+# optional master workbook). Trim the lists below to control how wide it gets.
+# -----------------------------------------------------------------------------
+daily_summary:
+  enabled: true
+
+  # TAT metrics to include per group. NOTE: two of the five canonical metrics are
+  # exact sums of the others, so they're omitted by default (they add no info):
+  #   collected_to_complete = collected_to_lab + lab_to_complete
+  #   order_to_complete      = order_to_collected + collected_to_lab + lab_to_complete
+  # The default keeps the three independent phases plus the order→complete total.
+  metrics:
+    - tat_order_to_collected
+    - tat_collected_to_lab
+    - tat_lab_to_complete
+    - tat_order_to_complete
+
+  # How TAT columns are grouped. Each group lists the test categories it covers.
+  # Default mirrors the lab's Blood-vs-Urine split (blood draws vs urinalysis).
+  # To get a TAT column set per test type instead, list all five categories as
+  # their own groups.
+  tat_groups:
+    Blood: [CBC, Chemistry, Cardiac, Coagulation]
+    Urine: [Urinalysis]
+
+  # Shift columns to include. Use your day/night labels and/or "Overall".
+  # Overall is dropped by default because it's derivable from Day + Night.
+  shifts: [Day, Night]
+
+  # Per-type count columns (CBC, Chemistry, …, Total) and the patient count.
+  include_counts: true
+  include_patient_count: true
+
+# -----------------------------------------------------------------------------
 # SHIFTS
 # Day shift runs [day_start, night_start); everything else is Night.
 # `basis` chooses which timestamp decides the shift a test belongs to.

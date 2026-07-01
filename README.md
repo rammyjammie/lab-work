@@ -25,6 +25,7 @@ For each report you feed in, you get an `.xlsx` workbook with these sheets:
 
 | Sheet | Contents |
 |-------|----------|
+| **Daily Summary** | One wide row for the day: counts by type, patient count, and grouped average TAT by shift. Designed to stack into a running tracker — see [Daily Summary](#daily-summary-the-wide-tracking-row). |
 | **Summary** | Total tests, totals by type, totals by shift, at a glance |
 | **Counts by Type** | Test counts per category, split by Day / Night |
 | **TAT by Type** | Average of each TAT metric per category |
@@ -130,6 +131,45 @@ spreadsheet (not recommended for shared files).
 
 ---
 
+## Daily Summary: the wide tracking row
+
+The **Daily Summary** sheet is one row per report, laid out as columns so days
+stack into a running, day-over-day tracker (the same wide shape your lab
+already uses):
+
+```
+Date | CBC | Chemistry | Cardiac | Coagulation | Urinalysis | Total | Patients | <grouped TAT by shift…>
+```
+
+**Why it's trimmed.** Two of the five TAT metrics are exact sums of the others,
+so they carry no extra information in an average:
+
+- `Collected→Complete = Collected→Lab + Lab→Complete`
+- `Order→Complete   = Order→Collected + Collected→Lab + Lab→Complete`
+
+So by default each group shows the **three independent phases** (`Order→Coll`,
+`Coll→Lab`, `Lab→Comp`) plus the **`Order→Comp` total** as the headline — four
+columns instead of five, and every number means something. TAT is grouped
+**Blood vs Urine** and split **Day vs Night** (the "overall" column is dropped
+because it's just Day+Night combined).
+
+All of this is controlled under `daily_summary` in `config/config.yaml` — change
+the metrics, the groups (e.g. one per test type), or the shifts without touching
+code.
+
+### Running master workbook
+
+Point the tool at a master file and each report's Daily Summary row is
+**appended** to it, building the time series automatically:
+
+```bash
+python -m cerner_tat.cli report.txt -o output --master output/master.xlsx
+```
+
+In the GUI, set the optional **Master file** field. The master is created on
+first use and grown one row per report thereafter; new columns are added on the
+end if the layout ever changes, so old rows keep working.
+
 ## Tuning it to YOUR reports
 
 Cerner output varies by site, so the parser is driven entirely by
@@ -160,6 +200,9 @@ python -m cerner_tat.cli path/to/report.html -o output_folder
 
 # a whole folder of reports
 python -m cerner_tat.cli reports/*.pdf reports/*.html -o output_folder
+
+# append each report's Daily Summary row to a running master workbook
+python -m cerner_tat.cli reports/*.txt -o output_folder --master output_folder/master.xlsx
 ```
 
 ---
