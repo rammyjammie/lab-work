@@ -35,6 +35,9 @@ class TestRecord:
     tat_collected_to_complete: Optional[float] = None
     tat_lab_to_complete: Optional[float] = None
     tat_order_to_complete: Optional[float] = None
+    # derived-only (order → received-in-lab); not a report column, computed from
+    # timestamps and used only by the Daily Summary.
+    tat_order_to_received: Optional[float] = None
 
     category: Optional[str] = None
     shift: Optional[str] = None

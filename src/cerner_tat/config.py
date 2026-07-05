@@ -22,6 +22,13 @@ TAT_FIELDS = [
     "tat_order_to_complete",
 ]
 
+# "order_to_received" is a DERIVED-only metric (order → received-in-lab). Reports
+# supply the five TAT_FIELDS above; this one is always computed from timestamps
+# and is available only for the Daily Summary (not the per-test Detail sheet).
+DERIVED_TAT_FIELDS = ["tat_order_to_received"]
+# Metrics selectable in daily_summary.metrics = the five report metrics + derived.
+DAILY_METRIC_CHOICES = TAT_FIELDS + DERIVED_TAT_FIELDS
+
 # Human-friendly labels for the TAT metrics (used as spreadsheet headers).
 TAT_LABELS = {
     "tat_order_to_collected": "Order → Collected",
@@ -29,6 +36,7 @@ TAT_LABELS = {
     "tat_collected_to_complete": "Collected → Complete",
     "tat_lab_to_complete": "Lab → Complete",
     "tat_order_to_complete": "Order → Complete",
+    "tat_order_to_received": "Order → Received",
 }
 
 # Compact labels for the wide "Daily Summary" columns (kept short so a day fits
@@ -39,6 +47,7 @@ TAT_SHORT_LABELS = {
     "tat_collected_to_complete": "Coll→Comp",
     "tat_lab_to_complete": "Lab→Comp",
     "tat_order_to_complete": "Order→Comp",
+    "tat_order_to_received": "Order→Recv",
 }
 
 # How each TAT metric is derived from timestamps when the report doesn't supply
@@ -49,6 +58,7 @@ TAT_FROM_TIMES = {
     "tat_collected_to_complete": ("collected_time", "complete_time"),
     "tat_lab_to_complete": ("received_time", "complete_time"),
     "tat_order_to_complete": ("order_time", "complete_time"),
+    "tat_order_to_received": ("order_time", "received_time"),
 }
 
 DEFAULT_CONFIG_PATH = os.path.join(
@@ -107,6 +117,9 @@ class Config:
     daily_shifts: List[str] = field(default_factory=list)
     daily_include_counts: bool = True
     daily_include_patient_count: bool = True
+    daily_count_categories: List[str] = field(default_factory=list)  # [] -> derive
+    daily_metric_labels: "Dict[str, str]" = field(default_factory=dict)  # header overrides
+    daily_overall_label: str = "Overall"
 
     @property
     def all_fields(self) -> List[str]:
@@ -209,7 +222,7 @@ def load_config(path: str | None = None) -> Config:
         "tat_lab_to_complete",
         "tat_order_to_complete",
     ]
-    cfg.daily_metrics = [m for m in metrics if m in TAT_FIELDS]
+    cfg.daily_metrics = [m for m in metrics if m in DAILY_METRIC_CHOICES]
     groups = daily.get("tat_groups") or {
         "Blood": ["CBC", "Chemistry", "Cardiac", "Coagulation"],
         "Urine": ["Urinalysis"],
@@ -220,5 +233,10 @@ def load_config(path: str | None = None) -> Config:
     cfg.daily_shifts = [str(s) for s in (daily.get("shifts") or ["Day", "Night"])]
     cfg.daily_include_counts = bool(daily.get("include_counts", True))
     cfg.daily_include_patient_count = bool(daily.get("include_patient_count", True))
+    cfg.daily_count_categories = [str(c) for c in (daily.get("count_categories") or [])]
+    cfg.daily_metric_labels = {
+        str(k): str(v) for k, v in (daily.get("metric_labels") or {}).items()
+    }
+    cfg.daily_overall_label = str(daily.get("overall_label", "Overall"))
 
     return cfg

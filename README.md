@@ -165,7 +165,24 @@ because it's just Day+Night combined).
 
 All of this is controlled under `daily_summary` in `config/config.yaml` — change
 the metrics, the groups (e.g. one per test type), or the shifts without touching
-code.
+code. Available TAT metrics for the daily summary are the five report metrics
+plus a derived **`tat_order_to_received`** (order → received-in-lab). Use
+`count_categories` to fix the count columns and their order, and `metric_labels`
+to rename the TAT headers.
+
+### The "official layout" preset
+
+`config/official_layout.yaml` is a ready-made preset that reproduces a specific
+requested column set: per-analyte counts (CBC, Chem, D-dimer, Lactate, PT, Trop,
+UA), a patient count, and order→receive / receive→result / order→result TAT for
+UA and Trop across Overall / Dayshift / Nights. Use it with:
+
+```bash
+python -m cerner_tat.cli report.txt -o output -c config/official_layout.yaml
+```
+
+or set it as the **Config** field in the GUI. Its footer notes which columns are
+mathematically redundant if you ever want to trim it.
 
 ### Outlier cap (e.g. urine cultures)
 

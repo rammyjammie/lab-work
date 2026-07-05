@@ -218,13 +218,16 @@ def _daily_row(
 
     for shift in config.daily_shifts:
         shift_recs = (
-            records if shift == "Overall" else [r for r in records if r.shift == shift]
+            records
+            if shift == config.daily_overall_label
+            else [r for r in records if r.shift == shift]
         )
         for group, cats in config.daily_tat_groups.items():
             catset = set(cats)
             grp = [r for r in shift_recs if r.category in catset]
             for metric in config.daily_metrics:
-                col = f"{group} {TAT_SHORT_LABELS[metric]} ({shift})"
+                label = config.daily_metric_labels.get(metric) or TAT_SHORT_LABELS[metric]
+                col = f"{group} {label} ({shift})"
                 row[col] = _avg(grp, metric, config.tat_cap_minutes)
 
     return row
@@ -238,8 +241,9 @@ def build_daily_summary(records: List[TestRecord], config: Config) -> pd.DataFra
     a final blank-date row). Column order (all driven by config.daily_*):
       Date | <per-type counts> | Total | Patients | <group·metric·shift TATs…>
     """
-    # Consistent count-column order across every row, from ALL records.
-    ordered_cats = _daily_category_order(records, config)
+    # Consistent count-column order across every row. An explicit
+    # daily_count_categories list (config) wins; otherwise it's derived.
+    ordered_cats = config.daily_count_categories or _daily_category_order(records, config)
 
     by_date: "dict[str, List[TestRecord]]" = {}
     for r in records:

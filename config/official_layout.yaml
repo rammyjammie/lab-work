@@ -1,0 +1,123 @@
+# =============================================================================
+# OFFICIAL LAYOUT preset — reproduces the boss's requested column set.
+#
+# Use it by pointing the tool at this file:
+#   GUI:  set the "Config" field to config/official_layout.yaml
+#   CLI:  python -m cerner_tat.cli report.txt -o output -c config/official_layout.yaml
+#
+# It keeps ALL of the requested columns (typos fixed, Nights made consistent with
+# Dayshift, and the metric that is a pure sum still included as "order→result").
+# See the RECOMMENDATION note at the bottom for the leaner version.
+# =============================================================================
+
+# --- column aliases (same as the default) ---
+columns:
+  patient_name:   ["patient", "patient name", "name"]
+  mrn:            ["mrn", "medical record number", "fin", "fin nbr"]
+  accession:      ["accession", "accession number", "specimen id", "specimen"]
+  test_name:      ["test", "test name", "order", "order name", "procedure", "orderable"]
+  order_time:     ["order date/time", "ordered", "order time", "order dt/tm", "ordered date/time"]
+  collected_time: ["collected", "collection date/time", "collect dt/tm", "collected dt/tm", "collected date/time"]
+  received_time:  ["received", "lab received", "received in lab", "receive dt/tm", "received date/time"]
+  complete_time:  ["completed", "complete date/time", "result date/time", "verified", "complete dt/tm", "resulted"]
+  tat_order_to_collected:  ["order to collected", "order to collect"]
+  tat_collected_to_lab:    ["collected to lab", "collect to received", "collected to received"]
+  tat_collected_to_complete: ["collected to complete", "collect to complete"]
+  tat_lab_to_complete:     ["lab to complete", "received to complete", "receive to result"]
+  tat_order_to_complete:   ["order to complete", "order to result"]
+
+text_layout:
+  datetime_fields: [order_time, collected_time, received_time, complete_time]
+  tat_fields:
+    - tat_order_to_collected
+    - tat_collected_to_lab
+    - tat_collected_to_complete
+    - tat_lab_to_complete
+    - tat_order_to_complete
+  priority_codes: ["ST", "RT", "STAT", "ROUTINE", "TIMED", "PREOP", "NOW", "ASAP", "TODAY", "RN", "UN"]
+  patient_header_pattern: "^\\d{4,}\\s+.+,.+"
+  patient_delimiters: ["PATIENT"]
+
+# The boss's report uses Dayshift / Nights terminology.
+shifts:
+  day_start:   "07:00"
+  night_start: "19:00"
+  day_label:   "Dayshift"
+  night_label: "Nights"
+  basis: collected_time
+
+# --- classification: the boss's specific categories ---
+# First match wins, so the specific analytes (Trop, D-dimer, PT, Lactate) are
+# listed BEFORE the broad panels (CBC, Chem) and are broken out of them.
+# NOTE: tests not listed here (e.g. PTT, BNP) fall into "Other" and appear only
+# in the Total — add a category for them if you want them tracked.
+classification:
+  categories:
+    - name: Trop
+      patterns: ["troponin", "\\btrop\\b"]
+    - name: D-dimer
+      patterns: ["d-?dimer"]
+    - name: PT
+      patterns: ["\\bpt\\b", "\\bpt/inr\\b", "prothrombin", "\\binr\\b"]
+    - name: Lactate
+      patterns: ["lactate", "lactic"]
+    - name: CBC
+      patterns: ["\\bcbc\\b", "complete blood count", "hemogram", "differential", "\\bdiff\\b", "\\bwbc\\b", "\\bplatelet\\b", "\\bh\\s*&\\s*h\\b"]
+    - name: UA
+      patterns: ["urinalysis", "\\bua\\b", "\\bu\\s*/\\s*a\\b", "urine"]
+    - name: Chem
+      patterns: ["\\bbmp\\b", "\\bcmp\\b", "metabolic panel", "electrolyte", "\\bbun\\b", "creatinine", "glucose", "\\blft\\b", "hepatic", "magnesium", "\\bmag\\b", "phosph", "calcium", "chemistry", "sodium", "potassium", "chloride"]
+  default: Other
+
+privacy:
+  deidentify: true
+  include_detail_sheet: true
+  include_timestamps: true
+
+analysis:
+  tat_cap_minutes: 500
+
+# --- the wide layout that matches the boss's column list ---
+daily_summary:
+  enabled: true
+
+  # Count columns, in this order. (#UA / #Trop in the request are just the UA and
+  # Trop counts; #patients is the separate patient count below.)
+  count_categories: ["CBC", "Chem", "D-dimer", "Lactate", "PT", "Trop", "UA"]
+  include_counts: true
+  include_patient_count: true      # -> the "Patients" (# patients) column
+
+  # TAT is tracked for only two tests: UA and Trop.
+  tat_groups:
+    UA:   ["UA"]
+    Trop: ["Trop"]
+
+  # Three metrics per the request. order→result is kept even though it equals
+  # order→receive + receive→result (see RECOMMENDATION).
+  metrics:
+    - tat_order_to_received     # order → receive
+    - tat_lab_to_complete       # receive → result
+    - tat_order_to_complete     # order → result
+  metric_labels:
+    tat_order_to_received: "order→receive"
+    tat_lab_to_complete:   "receive→result"
+    tat_order_to_complete: "order→result"
+
+  # Overall + Dayshift + Nights (Nights kept consistent with Dayshift).
+  shifts: ["Overall", "Dayshift", "Nights"]
+  overall_label: "Overall"
+
+# =============================================================================
+# RECOMMENDATION (to take back to the boss)
+# The list is ~28 columns; roughly half carry no new information:
+#   1. Drop "order→result" — it is exactly order→receive + receive→result.
+#      Saves 2 tests x 3 shifts = 6 columns. (Set metrics to just the two
+#      independent phases.)
+#   2. Drop "Overall" — it is Dayshift + Nights combined; the shift split is the
+#      actionable view. Saves 2 tests x N metrics columns. (Set shifts to
+#      ["Dayshift", "Nights"].)
+#   3. "# Trop" duplicates the "Trop" count, and "# UA" duplicates the "UA"
+#      count — one each is enough.
+# Doing 1 + 2 takes the TAT block from 18 columns to 8 while keeping every
+# number you can actually act on.
+# =============================================================================
