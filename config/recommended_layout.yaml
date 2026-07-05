@@ -1,0 +1,99 @@
+# =============================================================================
+# RECOMMENDED (LEAN) LAYOUT preset — the trimmed version of official_layout.yaml.
+#
+# Identical classification and counts, but the TAT block is cut from 18 columns
+# to 8 by removing the columns that carry no new information:
+#   * dropped "order→result"  (it equals order→receive + receive→result)
+#   * dropped the "Overall" shift (it equals Dayshift + Nights combined)
+# Every remaining number is one you can actually act on.
+#
+# Use it by pointing the tool at this file:
+#   GUI:  set the "Config" field to config/recommended_layout.yaml
+#   CLI:  python -m cerner_tat.cli report.txt -o output -c config/recommended_layout.yaml
+# =============================================================================
+
+# --- column aliases (same as the default) ---
+columns:
+  patient_name:   ["patient", "patient name", "name"]
+  mrn:            ["mrn", "medical record number", "fin", "fin nbr"]
+  accession:      ["accession", "accession number", "specimen id", "specimen"]
+  test_name:      ["test", "test name", "order", "order name", "procedure", "orderable"]
+  order_time:     ["order date/time", "ordered", "order time", "order dt/tm", "ordered date/time"]
+  collected_time: ["collected", "collection date/time", "collect dt/tm", "collected dt/tm", "collected date/time"]
+  received_time:  ["received", "lab received", "received in lab", "receive dt/tm", "received date/time"]
+  complete_time:  ["completed", "complete date/time", "result date/time", "verified", "complete dt/tm", "resulted"]
+  tat_order_to_collected:  ["order to collected", "order to collect"]
+  tat_collected_to_lab:    ["collected to lab", "collect to received", "collected to received"]
+  tat_collected_to_complete: ["collected to complete", "collect to complete"]
+  tat_lab_to_complete:     ["lab to complete", "received to complete", "receive to result"]
+  tat_order_to_complete:   ["order to complete", "order to result"]
+
+text_layout:
+  datetime_fields: [order_time, collected_time, received_time, complete_time]
+  tat_fields:
+    - tat_order_to_collected
+    - tat_collected_to_lab
+    - tat_collected_to_complete
+    - tat_lab_to_complete
+    - tat_order_to_complete
+  priority_codes: ["ST", "RT", "STAT", "ROUTINE", "TIMED", "PREOP", "NOW", "ASAP", "TODAY", "RN", "UN"]
+  patient_header_pattern: "^\\d{4,}\\s+.+,.+"
+  patient_delimiters: ["PATIENT"]
+
+shifts:
+  day_start:   "07:00"
+  night_start: "19:00"
+  day_label:   "Dayshift"
+  night_label: "Nights"
+  basis: collected_time
+
+# --- classification: identical to official_layout.yaml ---
+classification:
+  categories:
+    - name: Trop
+      patterns: ["troponin", "\\btrop\\b"]
+    - name: D-dimer
+      patterns: ["d-?dimer"]
+    - name: PT
+      patterns: ["\\bpt\\b", "\\bpt/inr\\b", "prothrombin", "\\binr\\b"]
+    - name: Lactate
+      patterns: ["lactate", "lactic"]
+    - name: CBC
+      patterns: ["\\bcbc\\b", "complete blood count", "hemogram", "differential", "\\bdiff\\b", "\\bwbc\\b", "\\bplatelet\\b", "\\bh\\s*&\\s*h\\b"]
+    - name: UA
+      patterns: ["urinalysis", "\\bua\\b", "\\bu\\s*/\\s*a\\b", "urine"]
+    - name: Chem
+      patterns: ["\\bbmp\\b", "\\bcmp\\b", "metabolic panel", "electrolyte", "\\bbun\\b", "creatinine", "glucose", "\\blft\\b", "hepatic", "magnesium", "\\bmag\\b", "phosph", "calcium", "chemistry", "sodium", "potassium", "chloride"]
+  default: Other
+
+privacy:
+  deidentify: true
+  include_detail_sheet: true
+  include_timestamps: true
+
+analysis:
+  tat_cap_minutes: 500
+
+# --- the trimmed wide layout ---
+daily_summary:
+  enabled: true
+
+  count_categories: ["CBC", "Chem", "D-dimer", "Lactate", "PT", "Trop", "UA"]
+  include_counts: true
+  include_patient_count: true
+
+  tat_groups:
+    UA:   ["UA"]
+    Trop: ["Trop"]
+
+  # Two independent phases only — the total (order→result) is their sum.
+  metrics:
+    - tat_order_to_received     # order → receive
+    - tat_lab_to_complete       # receive → result
+  metric_labels:
+    tat_order_to_received: "order→receive"
+    tat_lab_to_complete:   "receive→result"
+
+  # Shift split only — no redundant "Overall".
+  shifts: ["Dayshift", "Nights"]
+  overall_label: "Overall"

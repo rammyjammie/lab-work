@@ -124,3 +124,26 @@ def test_order_to_result_is_sum_of_phases():
     result = d["Trop receive→result (Dayshift)"]
     total = d["Trop order→result (Dayshift)"]
     assert total == recv + result  # the redundant column, proven redundant
+
+
+# --- recommended (lean) preset ---------------------------------------------
+
+_RECOMMENDED = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "config",
+    "recommended_layout.yaml",
+)
+
+
+def test_recommended_preset_is_trimmed():
+    cfg = load_config(_RECOMMENDED)
+    recs = deidentify(enrich(parse_text(PASTE, cfg), cfg), cfg)
+    cols = list(build_daily_summary(recs, cfg).columns)
+    tat_cols = [c for c in cols if "→" in c]
+    # 2 groups x 2 metrics x 2 shifts = 8 (down from 18)
+    assert len(tat_cols) == 8
+    # no redundant total metric and no Overall shift
+    assert not any("order→result" in c for c in cols)
+    assert not any("(Overall)" in c for c in cols)
+    # same counts as the official preset
+    assert cols[:8] == ["Date", "CBC", "Chem", "D-dimer", "Lactate", "PT", "Trop", "UA"]

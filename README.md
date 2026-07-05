@@ -184,6 +184,12 @@ python -m cerner_tat.cli report.txt -o output -c config/official_layout.yaml
 or set it as the **Config** field in the GUI. Its footer notes which columns are
 mathematically redundant if you ever want to trim it.
 
+`config/recommended_layout.yaml` is the **lean** version of the same layout —
+identical counts and classification, but the TAT block drops from 18 columns to
+8 by removing the redundant `order→result` total (= order→receive +
+receive→result) and the `Overall` shift (= Dayshift + Nights). Same counts, half
+the width, no information lost.
+
 ### Outlier cap (e.g. urine cultures)
 
 Some tests — urine cultures especially — take thousands of minutes and would
